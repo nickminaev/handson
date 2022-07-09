@@ -407,6 +407,54 @@ This might be helpful when some Pods aren't getting scheduled to Nodes. To know 
 
 For example: `kubectl describe <pod name>`
 
-Here we would get some additional info, as for which Node the Pod is scheduled, by which k8s entity it's being controlled, its events and so on.
+From the above we'd get some additional info, as for which Node the Pod is scheduled on, by which k8s entity it's being controlled, its events and so on.
+
+Remember that we have to keep our program up and running no matter what? But what happens when we want to replace the Pods based on the old version of an image with the newer one?
+
+# Enter the Deployments
+
+Deployments in k8s are responsible for managing your _software deployments_ on top of the k8s cluster. Hence its name.
+
+For example, Deployments can gradually replace the Pods running an older version of your code with the newer one.
+
+Namely, the Deployment would gradually phase off the Pods that don't need to run anymore with a set of new Pods based on the image with the newer version of your code.
+
+This helps us to continuously run the application without any downtime. 
+
+This is how we achive it:
+
+```
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+spec:
+  selector:
+    matchLabels:
+      app: nginx
+  replicas: 3
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.7.9
+        ports:
+        - containerPort: 80
+```
+
+Let's view it from _bottom to top_ again:
+
+1. We encounter the same spec for a Pod as we did with the Pod
+1. We're already familiar with the `template` part, which is a part of ReplicaSet.
+1. Other parts we're familiar with are: `replicas` and the `spec.selector`.
+
+As you may have noticed, the configuration is identical to the ReplicaSet.
+By the way, the ReplicaSet objecs are never used. Instead, the Deployments are used.
+
+Kubernetes has a superpower, according to which it observes the state of the object and if there are changes in the state, it'll try to reconcile them.
+Namely, k8s also keeps track of the previous state of the objects. So, the Deployments rely on these abilities.
 
 
