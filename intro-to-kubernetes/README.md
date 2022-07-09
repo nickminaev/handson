@@ -9,12 +9,12 @@ Even though the k8s engine is slightly different from the Docker's engine, the b
 
 - [A great turoial about k8s Deployments](https://semaphoreci.com/blog/kubernetes-deployment)
 
-The above is a great introduction into basic k8s objects. We'll relly on this tutorial
+The above is a great introduction into basic k8s objects. We'll rely on this tutorial as our main guide.
 
 - The style is taken from [this book](https://leanpub.com/devopskatas). 
 
-By the way, the above is a great book that provides a very good introduction into basic concepts behind Docker.
-What I like the most here is that this is a hands-on book with a ton of practical excercises.
+By the way, the above is a great book that provides a very good introduction into basic concepts behind Docker (and some other useful products).
+What I like the most about the book is that it's a hands-on book.
 
 # Fasten your seatbelts
 
@@ -113,7 +113,7 @@ Mmmm, it's not possible.
 ## Enter the Pods
 
 A _Pod_ is an abstraction for containers. A _Pod_ can run several containers inside it.
-Typically, we run a single container per one Pod. Adding container to a Pod might complicate the maintenance of the application that you're running on k8s.
+Typically, we run a single container per one Pod. Adding other containers to a Pod might complicate the maintenance of the application that you're running on k8s, as you'd need to keep a close eye on the container interdependencies and so on.
 The Pod is the smallest deployable unit in k8s.
 
 So, how do we do it?
@@ -305,7 +305,7 @@ In the next part we specify the following properties:
 | `spec.selector` | Which Pods will be controlled? |
 | `spec.selector.matchLabels` | The labels of the Pods that should be matched |
 
-The above answers the question how the ReplicaSet replicates the Pods.
+The above refers to exactly which Pods should be controlled by it (i.e. via the labels).
 
 Finally, we continue to the ReplicaSet's own specification. We're already familiar with the following k8s required specifications:
 
@@ -400,5 +400,13 @@ Events:
   Normal  SuccessfulCreate  2m37s  replicaset-controller  Created pod: nginx-replicas-8ppn2
 ```
 
+From the above output we have much more info about the ReplicaSet. For example, the related events.
+Along with additional pieces of info, we get a slightly more elaborate description of the object.
+
+This might be helpful when some Pods aren't getting scheduled to Nodes. To know why, we would use the `kubectl describe` command on the Pods.
+
+For example: `kubectl describe <pod name>`
+
+Here we would get some additional info, as for which Node the Pod is scheduled, by which k8s entity it's being controlled, its events and so on.
 
 
