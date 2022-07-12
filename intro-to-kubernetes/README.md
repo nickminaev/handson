@@ -329,7 +329,7 @@ The command:
 ---
 
 The output would be like the following:
-```
+```text
 NAME             DESIRED   CURRENT   READY   AGE
 nginx-replicas   3         3         0       7s
 ```
@@ -373,7 +373,7 @@ For example: `kubectl describe replicaset nginx-replicas`
 
 The output would be like the following:
 
-```
+```text
 Name:         nginx-replicas
 Namespace:    default
 Selector:     app=nginx
@@ -417,19 +417,16 @@ Let's update the `ReplicaSet.yaml` file and deploy the change with: `kubectl app
 
 Note the `apply` part. Typically this subcommand is used to create and/or update the objects in k8s.
 
+Let's run this command to see how the pods are updating: `kubectl get pods --selector app=nginx -w`
+
+Well, nothing has changed. 
+
+So, how do we replace the Pods with the new ones in the ReplicaSet and also gradually without downtime?
 # Enter the Deployments
 
-Deployments in k8s are responsible for managing your _software deployments_ on top of the k8s cluster. Hence its name.
+Let's look at the example above:
 
-For example, Deployments can gradually replace the Pods running an older version of your code with the newer one.
-
-Namely, the Deployment would gradually phase off the Pods that don't need to run anymore with a set of new Pods based on the image with the newer version of your code.
-
-This helps us to continuously run the application without any downtime. 
-
-This is how we achive it:
-
-```
+```yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -455,9 +452,69 @@ Let's view it from _bottom to top_ again:
 
 As you may have noticed, the configuration is identical to the ReplicaSet.
 By the way, the ReplicaSet objecs are never used. Instead, the Deployments are used.
-
-Kubernetes has a superpower, according to which not only does it observe the state of the objects, but also keeps track of the previous state. Deployments rely on this possibility.
-
 ## Deployments in action
+
+First, let's clean up the ReplicaSet: `kubectl delete -f ReplicaSet.yaml`
+
+Secondly, let's create a k8s Deployment: `kubectl apply -f Deployment.yaml`
+
+Let's update the Deployment.yaml file to see what's going on with the relevant NGINX version: `1.20.2-alpine`.
+Now, let's run these commands:
+
+```bash
+kubectl apply -f Deployment.yaml
+kubectl get pods --select app=nginx --watch
+```
+
+Now you see how k8s is gradually reloading the Pods with the new application version.
+
+So, with the deployments we achieve the following:
+ 
+ - Deployment keeps track of the the application's version
+ - Whenever there's a change, it replaces the Pods with the new ones gradually
+ - Also, Deployments drive the ReplicaSets, so the underlying ReplicaSet keeps the application stable
+
+# A word about Services
+
+Currently the application is running, but how can we communicate with it?
+ 
+ k8s assings every Pod an IP address, but how do you navigate till that Pod?
+
+Service in k8s servers as a load-balancer that load-balances the traffic between the application's Pods based on their labels.
+
+Namely, it's an abstraction from other k8s components that assign every Pod a DNS record internally and an internal IP.
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-service
+spec:
+  selector:
+    app:nginx
+  ports:
+  - name: http
+    protocol: TCP
+    port: 80
+    targetPort: 80
+```
+Let's deploy a test pod (`TestPod.yaml`) and test the service:
+```bash
+kubectl apply -f TestPod.yaml
+kubectl exec -it nginx -- /bin/sh
+```
+
+Now, we're on the test Pod. Let's add install `curl` on it and run some commands on it:
+```
+apk add curl
+curl http://nginx-service.default.svc.cluster.local/
+```
+Note the URL structure:
+- The name of the service
+- The namespace (i.e. `default`)
+- The `svc` prefix stands for Services
+- `cluster.local`
+
+
 
 
