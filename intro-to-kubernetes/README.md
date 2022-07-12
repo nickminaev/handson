@@ -265,7 +265,7 @@ spec:
     spec:
       containers:
       - name: nginx
-        image: nginx
+        image: nginx:1.14.2
         ports:
         - containerPort: 80
 ```
@@ -411,6 +411,12 @@ From the above we'd get some additional info, as for which Node the Pod is sched
 
 Remember that we have to keep our program up and running no matter what? But what happens when we want to replace the Pods based on the old version of an image with the newer one?
 
+Let's try to update the version of the `nginx` image to something newer, say `1.20.2-alpine`. We'll upgrade the NGINX version and also make the footprint smaller.
+
+Let's update the `ReplicaSet.yaml` file and deploy the change with: `kubectl apply -f ReplicaSet.yaml`
+
+Note the `apply` part. Typically this subcommand is used to create and/or update the objects in k8s.
+
 # Enter the Deployments
 
 Deployments in k8s are responsible for managing your _software deployments_ on top of the k8s cluster. Hence its name.
@@ -440,21 +446,18 @@ spec:
     spec:
       containers:
       - name: nginx
-        image: nginx:1.7.9
+        image: nginx:1.14.2
         ports:
         - containerPort: 80
 ```
 
 Let's view it from _bottom to top_ again:
 
-1. We encounter the same spec for a Pod as we did with the Pod
-1. We're already familiar with the `template` part, which is a part of ReplicaSet.
-1. Other parts we're familiar with are: `replicas` and the `spec.selector`.
-
 As you may have noticed, the configuration is identical to the ReplicaSet.
 By the way, the ReplicaSet objecs are never used. Instead, the Deployments are used.
 
-Kubernetes has a superpower, according to which it observes the state of the object and if there are changes in the state, it'll try to reconcile them.
-Namely, k8s also keeps track of the previous state of the objects. So, the Deployments rely on these abilities.
+Kubernetes has a superpower, according to which not only does it observe the state of the objects, but also keeps track of the previous state. Deployments rely on this possibility.
+
+## Deployments in action
 
 
