@@ -48,7 +48,7 @@ Done! kubectl is now configured to use "minikube" cluster and "default" namespac
 
 ## A small recap
 
-- There's a Kubernetes _server_ than connects to the _nodes_, i.e. a set of computers via _kubelet_, an agent installed on each server.
+- There's a Kubernetes server (i.e. _Control Pane_) than connects to the _nodes_, i.e. a set of computers via _kubelet_, an agent installed on each server.
 - All the commands are issued to the k8s server, and then passed down to the kubelets.
 
 # Inquiring some basic components of the k8s cluster
@@ -113,7 +113,7 @@ Mmmm, it's not possible.
 ## Enter the Pods
 
 A _Pod_ is an abstraction for containers. A _Pod_ can run several containers inside it.
-Typically, we run a single container per one Pod. Adding other containers to a Pod might complicate the maintenance of the application that you're running on k8s, as you'd need to keep a close eye on the container interdependencies and so on.
+Typically, we run a single container per one Pod. Adding other containers is possible, but it'll complicate the matters if something goes awry inside a Pod.
 The Pod is the smallest deployable unit in k8s.
 
 So, how do we do it?
@@ -138,7 +138,14 @@ YAML is a super-set of JSON and is used to describe k8s objects. Let's dive in:
 - `metadata`: some metadata about the object, such as its name. The name is mandatory. 
 - `spec:`: additional specifications about the object. 
 
-As a Pod runs containers, we provide information about the containers it runs, such as their name, image and tag that they're based on, ports through which they're exposed.
+The `apiVersion`, `kind` and the `metadata` properties are indispensable when creating a new k8s object with YAML.
+They contain the most basic info the k8s API needs to know about an object.
+
+The `spec` part is used in the vast majority of the k8s objects specifications, since very frequently you'd need to specify some more additional object properties, and this is done under the `spec` section.
+
+In the example above, we need to specify some information about the Pod, i.e. which containers it should run, based on which image and tag, and which port(s) should be exposed.
+
+The `containerPort` property is responsible for exposing the container's port 80, on which the application is running, to other k8s components.
 
 ---
 
@@ -228,7 +235,7 @@ But when we deleted a Pod, the whole application went down.
 It must not happen when our application is running on Production.
 Moreover, we should support redudnancy, namely if one of our Pods goes down, we get others.
 
-In other words, we should have Pods up and running all the time, and able to scale them.
+In other words, we should have Pods up and running all the time, and be able to scale them.
 
 How do we do achieve all of this?
 
@@ -271,7 +278,7 @@ spec:
 ```
 
 Let's look at the specification from _bottom to top_.
-If we start with the lower `spec.template.spec` section, we would see that the Pod specification is much the same as in the previous section.
+If we start with the lower `spec.template.spec` section, we would see that the Pod specification is as much the same as in the previous section.
 Namely, the ReplicaSet requires the Pod specification.
 
 So what does the `spec.template` part refer to?
@@ -292,7 +299,7 @@ metadata:
   labels:
     app: nginx
 ```
-We label the Pods with the `app` label and its contents is `nginx`. The _labels_ work as key-value pairs in k8s.
+We label the Pods with the `app` label, whose value is `nginx`. The _labels_ work as key-value pairs in k8s.
 We can add several labels to the same k8s object.
 
 ## Power to the ReplicaSet
@@ -303,7 +310,7 @@ In the next part we specify the following properties:
 | --- | --- |
 | `spec.replicas` | How many replicas of the same Pods should run |
 | `spec.selector` | Which Pods will be controlled? |
-| `spec.selector.matchLabels` | The labels of the Pods that should be matched |
+| `spec.selector.matchLabels` | The labels of the Pods that should be matched. You can specify here more than 1 label and its value |
 
 The above refers to exactly which Pods should be controlled by it (i.e. via the labels).
 
@@ -339,11 +346,21 @@ Here we see the `DESIRED` and `CURRENT` properties referencing the # of Pods tha
 We can watch the how the containers inside the Pods come to live by adding the `--watch` flag. This way, we can observe the change in the k8s objects' state:
 `kubectl get replicaset nginx-replicas --watch`
 
-To abort the command, we should use the combination of Control+C keys.
+To abort the command, we should use the combination of `Control+C` keys.
 
 Now we have the ReplicaSet running. Let's see what happens with the Pods: `kubectl get pods --selector app=nginx`
 
-Note that we added the `--selector` flag which is followed by the `app=nginx` label. Namely, we also can use the labels as selectors in our queries.
+---
+
+The command:
+
+- `kubectl` is the main command for the running all other CLI commands against a k8s cluster
+- `get` is the subcommand of inquiring short info about a k8s object.
+- `pods` is the type of the object that we would like to inquiry. Here it can be specified either in plural or singular, since we expect more than object in the output.
+- `--selector` is an additional option, i.e. _flag_ which would be accepted by the main command and its subcommand
+- `app=nginx` is the _flag_'s argument. In this case, we can send some other additional labels in the following format separated by whitespaces `key1=value1 key2=value2`
+
+---
 
 The output would be like the one below:
 ```text
@@ -354,22 +371,44 @@ nginx-replicas-dx895   1/1     Running   0          5m42s
 
 Note that the Pod names were assigned the name of the controlling ReplicaSet and a random value afterwards.
 
-In stateless applications the Pod name matters less. Why? Let's imagine a situation one of the Nodes goes down.
-k8s will notice the change in the Node state and remove the Pods from there.
+Let's a remove one of the Pods and see what's happening: `kubectl delete pod nginx-replicas-5vc4d`
 
-Namely, the _Pods are ephemeral_. It's good practice not to save any state on the Pods, since they can be removed at any given time.
+---
 
-Let's a remove one of the Pods and see what's happening: `kubectl delete pod <pod name>`
+The command:
 
-Let's run the following command again: `kubectl get pods --selector app=nginx`
+- `kubectl` is the main command for the running all other CLI commands against a a k8s cluster
+- `delete` is the subcommand for deleting an object. Its type (kind) has to follow
+- `pod` - a specific k8s object kind. Its name has to follow
+- `nginx-replicas-5vc4d` - the name of the Pod to be deleted. Note that the name of the object has to exactly match so it can be located by the k8s API.
+
+---
+
+Let's run the following command again after we removed a Pod: `kubectl get pods --selector app=nginx`
 
 In the command's output you'll 3 Pods again. Note how immediately the ReplicaSet created a new Pod instead of the deleted one.
 
+It's important to note that the Pods are _ephemeral_, i.e. they can be easily delete by the k8s API at any moment.
+So, the the Pods that are controlled by a ReplicaSet always must run a stateless application.
+
+For example, one of the Nodes in the cluster goes down suddenly. In such case, the k8s Control Pane will quickly replace the missing Pod with a new one.
+
 # Get Some More Info
 
-In order to inquiry some more info about a k8s object, we can use the `kubectl describe` command.
+In order to inquiry some more info about a k8s object or objects, we can use the `kubectl describe` command.
 
 For example: `kubectl describe replicaset nginx-replicas`
+
+---
+
+The command:
+
+- `kubectl` is the main command for the running all other CLI commands against a a k8s cluster
+- `describe` provides the info in a more elaborate form about an k8s object
+- `replicaset` is the type of the object that you'd like to get the info about
+- `nginx-replicas` is the name of the object
+
+---
 
 The output would be like the following:
 
@@ -415,7 +454,21 @@ Let's try to update the version of the `nginx` image to something newer, say `1.
 
 Let's update the `ReplicaSet.yaml` file and deploy the change with: `kubectl apply -f ReplicaSet.yaml`
 
-Note the `apply` part. Typically this subcommand is used to create and/or update the objects in k8s.
+---
+
+The command:
+
+- `kubectl` is the main command for the running all other CLI commands against a a k8s cluster
+- `apply` is used to patch an object if it exist, or create a new one if it doesn't exist
+- `-f` the object's info is taken from the file whose path is specified next
+- `ReplicaSet.yaml`  is the path of the file.
+
+Note that the `apply` subcommand is frequently used by the developers when working with the k8s CLI, since it does both things:
+it creates a new k8s object if it does not exist and alter an existing object.
+
+Thus, the the `create` subcommand is almost never used.
+
+--
 
 Let's run this command to see how the pods are updating: `kubectl get pods --selector app=nginx -w`
 
@@ -451,10 +504,24 @@ spec:
 Let's view it from _bottom to top_ again:
 
 As you may have noticed, the configuration is identical to the ReplicaSet.
-By the way, the ReplicaSet objecs are never used. Instead, the Deployments are used.
+By the way, the ReplicaSet objecs are never used. Instead, the Deployments are used. We'll see why within a few moments.
 ## Deployments in action
 
 First, let's clean up the ReplicaSet: `kubectl delete -f ReplicaSet.yaml`
+
+---
+
+The command:
+
+- `kubectl` is the main command for the running all other CLI commands against a a k8s cluster
+- `delete` is the subcommand for deleting an object. Its type (kind) has to follow
+- `-f` from the file
+- `ReplicaSet.yaml` is the path of the file
+
+Note that you can specify the file path containing the k8s objects that you'd like to delete.
+The API will calculate alone which objects ought to be removed based on the contents of the file
+
+---
 
 Secondly, let's create a k8s Deployment: `kubectl apply -f Deployment.yaml`
 
@@ -466,7 +533,24 @@ kubectl apply -f Deployment.yaml
 kubectl get pods --select app=nginx --watch
 ```
 
+The output would be as following:
+
+```text
+NAME                  READY   STATUS              RESTARTS   AGE
+web-65d59f864-545jp   1/1     Terminating         0          8m31s
+web-65d59f864-drk52   1/1     Running             0          8m31s
+web-65d59f864-vlwnk   1/1     Running             0          8m31s
+web-9456bbbf9-26bkc   0/1     ContainerCreating   0          1s
+web-9456bbbf9-pw7l6   1/1     Running             0          5s
+web-65d59f864-545jp   0/1     Terminating         0          8m31s
+web-65d59f864-545jp   0/1     Terminating         0          8m31s
+web-65d59f864-545jp   0/1     Terminating         0          8m32s
+...
+```
+
 Now you see how k8s is gradually reloading the Pods with the new application version.
+
+Note the naming of the Pods has changed now. Their names contain now the of the Deployment, which is followed by the Id of the Pod and the Id of the Replicaset.
 
 So, with the deployments we achieve the following:
  
@@ -474,11 +558,35 @@ So, with the deployments we achieve the following:
  - Whenever there's a change, it replaces the Pods with the new ones gradually
  - Also, Deployments drive the ReplicaSets, so the underlying ReplicaSet keeps the application stable
 
+ ---
+
+Under the hood, a Deployment creates another ReplicSet and starts to dynamically update the sizes of two ReplicaSets at the same time.
+The following operations are performed behind the scenes:
+
+- The old ReplicaSet's size is decreased by 1. This causes one of the Pods to get deleted.
+- The size of the newly created ReplicaSet is increased by 1. A new Pod with the new specification is created.
+
+The above is repeated till the size of the new ReplicaSet is equal to the size of the Deployment, and the size of the old ReplicaSet is equal to 0.
+
+If you run the `kubectl get replicasets` command, you'd see the output as demonstrated below:
+
+```text
+NAME            DESIRED   CURRENT   READY   AGE
+web-65d59f864   0         0         0       16m
+web-9456bbbf9   3         3         3       8m16s
+```
+
+You can note that the newly ReplicSet's size is identical to the # of Pods specified in the Deployment.
+
+Eventually the Pods are gradually replaced with the new ones once the old ones are terminated.
+
+---
+
 # A word about Services
 
 Currently the application is running, but how can we communicate with it?
  
- k8s assings every Pod an IP address, but how do you navigate till that Pod?
+k8s assings every Pod an IP address, but how do you navigate till that Pod?
 
 Service in k8s servers as a load-balancer that load-balances the traffic between the application's Pods based on their labels.
 
@@ -498,11 +606,29 @@ spec:
     port: 80
     targetPort: 80
 ```
+
+Let's look into the Service's specification:
+
+| Property | Description | 
+| --- | --- |
+| `apiVersion` | Every k8s object must specify the API version, i.e. `v1` |
+| `kind` | The type or _kind_ of the object in question |
+| `metadata.name` | The name of the object |
+| `spec.selector` | Loadbalance the traffic between the objects based on the labels specified |
+| `ports` | Map the Service's ports to the container ports |
+
+
+Mapping the 
+
+
 Let's deploy a test pod (`TestPod.yaml`) and test the service:
+
 ```bash
 kubectl apply -f TestPod.yaml
 kubectl exec -it nginx -- /bin/sh
 ```
+
+There's a new command 
 
 Now, we're on the test Pod. Let's add install `curl` on it and run some commands on it:
 ```
