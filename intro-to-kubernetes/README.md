@@ -69,7 +69,7 @@ Kubernetes control plane is running at https://127.0.0.1:54863
 CoreDNS is running at https://127.0.0.1:54863/api/v1/namespaces/kube-system/services/kube-dns:dns/proxy
 ```
 
-The _Kubernetes control pane_ is the API server to which the commands are issues.
+The _Kubernetes control pane_ is the API server to which the commands are issued.
 
 _CoreDNS_ is the local DNS system running on a k8s cluster. We'll get back to it later.
 
@@ -237,7 +237,7 @@ Moreover, we should support redudnancy, namely if one of our Pods goes down, we 
 
 In other words, we should have Pods up and running all the time, and be able to scale them.
 
-How do we do achieve all of this?
+How do we achieve all of this?
 
 # ReplicaSets
 
@@ -468,13 +468,13 @@ it creates a new k8s object if it does not exist and alter an existing object.
 
 Thus, the the `create` subcommand is almost never used.
 
---
+---
 
 Let's run this command to see how the pods are updating: `kubectl get pods --selector app=nginx -w`
 
 Well, nothing has changed. 
 
-So, how do we replace the Pods with the new ones in the ReplicaSet and also gradually without downtime?
+So, how do we replace the Pods with the new ones in the ReplicaSet? Would it be dreamy if the Pods got also _gradually_ replaced?
 # Enter the Deployments
 
 Let's look at the example above:
@@ -504,7 +504,7 @@ spec:
 Let's view it from _bottom to top_ again:
 
 As you may have noticed, the configuration is identical to the ReplicaSet.
-By the way, the ReplicaSet objecs are never used. Instead, the Deployments are used. We'll see why within a few moments.
+
 ## Deployments in action
 
 First, let's clean up the ReplicaSet: `kubectl delete -f ReplicaSet.yaml`
@@ -550,13 +550,15 @@ web-65d59f864-545jp   0/1     Terminating         0          8m32s
 
 Now you see how k8s is gradually reloading the Pods with the new application version.
 
-Note the naming of the Pods has changed now. Their names contain now the of the Deployment, which is followed by the Id of the Pod and the Id of the Replicaset.
+Note the naming of the Pods has changed now. Their names contain now the name of the Deployment, which is followed by the Id of ReplicaSet and the Id of a Pod.
 
 So, with the deployments we achieve the following:
  
  - Deployment keeps track of the the application's version
  - Whenever there's a change, it replaces the Pods with the new ones gradually
  - Also, Deployments drive the ReplicaSets, so the underlying ReplicaSet keeps the application stable
+
+ As it was noted, the ReplicaSets are never used. Instead, due to the reasons above we use Deployments.
 
  ---
 
@@ -588,7 +590,7 @@ Currently the application is running, but how can we communicate with it?
  
 k8s assings every Pod an IP address, but how do you navigate till that Pod?
 
-Service in k8s servers as a load-balancer that load-balances the traffic between the application's Pods based on their labels.
+Service in k8s serves as a load-balancer that load-balances the traffic between the application's Pods based on their labels.
 
 Namely, it's an abstraction from other k8s components that assign every Pod a DNS record internally and an internal IP.
 
@@ -616,9 +618,6 @@ Let's look into the Service's specification:
 | `metadata.name` | The name of the object |
 | `spec.selector` | Loadbalance the traffic between the objects based on the labels specified |
 | `ports` | Map the Service's ports to the container ports |
-
-
-Mapping the 
 
 
 Let's deploy a test pod (`TestPod.yaml`) and test the service:
