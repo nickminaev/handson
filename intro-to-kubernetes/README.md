@@ -16,40 +16,29 @@ The above is a great introduction into basic k8s objects. We'll rely on this tut
 By the way, the above is a great book that provides a very good introduction into basic concepts behind Docker (and some other useful products).
 What I like the most about the book is that it's a hands-on book.
 
+Disclaimer: I'm not affiliated with any of the parties above.
+
 # Fasten your seatbelts
 
 ![dashboard.jpg]()
 
 [Image by Vitali Adutskevich](https://unsplash.com/photos/Dq3Z2bQVuHU?utm_source=unsplash&utm_medium=referral&utm_content=creditShareLink)
 
-Let's do some preparations before we dive in:
-- Start the Docker Desktop or the Docker deamon.
-- The `kubectl` CLI tool. This tool allows us to communicate with the k8s API that would create what we need for us. Run the `kubectl version` command to see if it's installed.
-- The `minikube` tool. Usually comes preinstalled with the Docker for Desktop. Run the `minikube start` command in your terminal to see if it's instaled.
+Let's do some preparations before we dive in.
 
-Let's start our k8s cluster locally with the following command: `minikube start --driver docker --nodes 2`
+For Windows and macOS users, it'd include the following steps:
+- Start the Docker Desktop or the Docker daemon.
+- Enable Kuberentes on top of the Docker for Desktop application. Once the Docker engine is restarted, you'd be able to use Kubernetes locally.
 
----
+As for Linux-based systems, you'd have to install Docker and Minikube or Microk8s.
 
-The command:
-- `minikube` - The parent command for running a k8s cluster locally.
-- `start` - the subcommand for starting a k8s cluster.
-- `--driver docker` - we'll run the k8s cluster based on the Docker driver. We'll build and use the images locally.
-- `--nodes 2` - the number of the Nodes in the cluster.
+Last but not the least important, the `kubectl` CLI tool should be installed. 
+Run the `kubectl version` command to see if it's installed.
 
----
+Note that Kubernetes is typically being run on top of several computers.
+However, for the sake of this tutorial, we'll run Kubernetes (or k8s) locally, on top of a single device.
 
-By running the command above, we're starting a local k8s cluster based on the Docker driver with 2 virtual computers, i.e. _Nodes_.
-
-It'll take several minutes for the cluster to start up. Expected output would be:
-```text
-Done! kubectl is now configured to use "minikube" cluster and "default" namespace by default.
-```
-
-## A small recap
-
-- There's a Kubernetes server (i.e. _Control Pane_) than connects to the _nodes_, i.e. a set of computers via _kubelet_, an agent installed on each server.
-- All the commands are issued to the k8s server, and then passed down to the kubelets.
+The computers on which Kubernetes is run, are called _cluster_, or _Kubernetes cluster_.
 
 # Inquiring some basic components of the k8s cluster
 
@@ -68,13 +57,27 @@ The output would be something like the below:
 Kubernetes control plane is running at https://127.0.0.1:54863
 CoreDNS is running at https://127.0.0.1:54863/api/v1/namespaces/kube-system/services/kube-dns:dns/proxy
 ```
+## Let's throw in some buzzwords
 
-The _Kubernetes control pane_ is the API server to which the commands are issued.
+Let's familiarize ourselves with some of the terms. The below is rather a very basic introduction to the realm of Kubernetes.
+
+Kubernetes is just a series of applications that allow us to control containers, i.e. _container orchestration_.
+
+The _Kubernetes control plane_ is the master behind Kubernetes itself, as it controls its every aspect.
+
+One of the components of the _control plane_ is the _API server_ which listens to the commands we issue.
+
+_kubectl_ is the command line interface (CLI) through which the commands to the _Kubernetes API server_ are issued.
+
+We can also communicate with the _Kubernetes API server_ through HTTP and via SDKs, such the Javascript, Python, Go, C#, etc. client libraries.
 
 _CoreDNS_ is the local DNS system running on a k8s cluster. We'll get back to it later.
 
+Additional components would be the _Nodes_, i.e. the actual computers (or virtual machines) which run the workloads.
 
-Let's see the nodes' status in the clsuter: `kubectl get nodes`
+Commands that are issued to the _API server_ are passed down to the Nodes through _kubelet_, which is the Kubernetes agent running on top of every Node.
+
+Let's inquiry the status of the Nodes by issuing the following command: `kubectl get nodes`
 
 ---
 
@@ -82,17 +85,15 @@ The command:
 
 - `kubectl` is the main command for the running all other CLI commands against a a k8s cluster
 - `get` is the subcommand of inquiring short info about a k8s object. For example, the nodes
-- `nodes` the name of the k8s object. In singular, we have to specify the name of the object. In pluar, we'll get all the objects of the same kind.
-   In the above example, we'd like to get info about all the nodes.
+- `nodes` the name of the k8s object. The object can be specified either in singular or plural.
 
 ---
 
 The output of the command would be along these lines:
 
 ```text
-NAME       STATUS   ROLES                  AGE   VERSION
-minikube   Ready    control-plane,master   77d   v1.23.3
-...
+NAME             STATUS   ROLES                  AGE   VERSION
+docker-desktop   Ready    control-plane,master   11m   v1.22.4
 ```
 
 ## They have a name
@@ -101,9 +102,12 @@ Let's closely examine the output here (spoiler: it's going to be somewhat simila
 
 - `NAME`: the name of the object. We can use it later to perfrom actions on that object.
 - `STATUS`: the status of the object. In the above example, the nodes are ready.
-- `ROLES`: specific to the Nodes. The node in the example above has the `master` and `control pane` roles. We won't delve into this property during the session.
+- `ROLES`: specific to the Nodes. The node in the example above has the `master` and `control plane` roles. We won't delve into this property during the session.
 - `AGE`: when the object was created
 - `VERSION`: the kubelet agent version
+
+
+Additional documentation about the k8s componentes is available [here](https://kubernetes.io/docs/concepts/overview/components/)
 
 # Run containers
 
@@ -113,7 +117,7 @@ Mmmm, it's not possible.
 ## Enter the Pods
 
 A _Pod_ is an abstraction for containers. A _Pod_ can run several containers inside it.
-Typically, we run a single container per one Pod. Adding other containers is possible, but it'll complicate the matters if something goes awry inside a Pod.
+Typically, we run a single container per one Pod. Adding other containers is possible, but it might complicate your application's  maintenance. 
 The Pod is the smallest deployable unit in k8s.
 
 So, how do we do it?
@@ -141,7 +145,7 @@ YAML is a super-set of JSON and is used to describe k8s objects. Let's dive in:
 The `apiVersion`, `kind` and the `metadata` properties are indispensable when creating a new k8s object with YAML.
 They contain the most basic info the k8s API needs to know about an object.
 
-The `spec` part is used in the vast majority of the k8s objects specifications, since very frequently you'd need to specify some more additional object properties, and this is done under the `spec` section.
+The `spec` part is used in the vast majority of the k8s objects specifications, since in many cases you'd need to specify some additional object properties, and this is done under the `spec` section.
 
 In the example above, we need to specify some information about the Pod, i.e. which containers it should run, based on which image and tag, and which port(s) should be exposed.
 
@@ -186,8 +190,8 @@ Let's run the following command: `kubectl get pod nginx`
 The command:
 - `kubectl` is the main command for the running all other CLI commands against a a k8s cluster
 - `get` is the subcommand of inquiring short info about a k8s object. For example, a Pod.
-- `pod` - a specific k8s object kind. Its name has to follow
-- `nginx` - the name of the object
+- `pod` is the type of the object. It can be specified either in singular or plural.
+- `nginx` - the name of the object. If the name of the object is specified, the command's output will be the info about that object.
 
 ---
 
@@ -310,9 +314,7 @@ In the next part we specify the following properties:
 | --- | --- |
 | `spec.replicas` | How many replicas of the same Pods should run |
 | `spec.selector` | Which Pods will be controlled? |
-| `spec.selector.matchLabels` | The labels of the Pods that should be matched. You can specify here more than 1 label and its value |
-
-The above refers to exactly which Pods should be controlled by it (i.e. via the labels).
+| `spec.selector.matchLabels` | The Pods will be controlled by specifying the labels. You can specify here more than 1 label and its value |
 
 Finally, we continue to the ReplicaSet's own specification. We're already familiar with the following k8s required specifications:
 
@@ -330,8 +332,8 @@ The command:
 
 - `kubectl` is the main command for the running all other CLI commands against a a k8s cluster
 - `get` is the subcommand of inquiring short info about a k8s object.
-- `replicaset` is the type of the object that we would like to inquiry
-- `nginx-replicas` - the name of the object
+- `replicaset` is the type of the object that we would like to inquiry. Can be specified in either singular or plural.
+- `nginx-replicas` - the name of the object. If we specify a name, the command's output will be the info about that object.
 
 ---
 
@@ -357,7 +359,7 @@ The command:
 - `kubectl` is the main command for the running all other CLI commands against a k8s cluster
 - `get` is the subcommand of inquiring short info about a k8s object.
 - `pods` is the type of the object that we would like to inquiry. Here it can be specified either in plural or singular, since we expect more than object in the output.
-- `--selector` is an additional option, i.e. _flag_ which would be accepted by the main command and its subcommand
+- `--selector` is an additional option, i.e. _flag_ which would be accepted by the main command and its subcommand. The flag here references the labels.
 - `app=nginx` is the _flag_'s argument. In this case, we can send some other additional labels in the following format separated by whitespaces `key1=value1 key2=value2`
 
 ---
@@ -368,6 +370,8 @@ nginx-replicas-5vc4d   1/1     Running   0          5m42s
 nginx-replicas-bwqz8   1/1     Running   0          5m42s
 nginx-replicas-dx895   1/1     Running   0          5m42s
 ```
+
+The command's output is the list of Pods, which matched all the labels specified after the `--selector` flag.
 
 Note that the Pod names were assigned the name of the controlling ReplicaSet and a random value afterwards.
 
@@ -388,10 +392,11 @@ Let's run the following command again after we removed a Pod: `kubectl get pods 
 
 In the command's output you'll 3 Pods again. Note how immediately the ReplicaSet created a new Pod instead of the deleted one.
 
-It's important to note that the Pods are _ephemeral_, i.e. they can be easily delete by the k8s API at any moment.
-So, the the Pods that are controlled by a ReplicaSet always must run a stateless application.
+It's a good practice to run only stateless applications (as opposed to databases and filestores) on top of a k8s cluster.
+Hence, in the vast majority of the cases all your Pods will be controlled by ReplicaSets.
 
-For example, one of the Nodes in the cluster goes down suddenly. In such case, the k8s Control Pane will quickly replace the missing Pod with a new one.
+Think of Pods as if they could be deleted by the k8s control plane every moment without any special reason (for example, a Node suddenly goes down).
+This approach ensures the applications that are running on top of a k8s cluster are highly available and robust.
 
 # Get Some More Info
 
@@ -471,6 +476,8 @@ Thus, the the `create` subcommand is almost never used.
 ---
 
 Let's run this command to see how the pods are updating: `kubectl get pods --selector app=nginx -w`
+
+Note that the `-w` flag is the shorthand for the `--watch` flag.
 
 Well, nothing has changed. 
 
