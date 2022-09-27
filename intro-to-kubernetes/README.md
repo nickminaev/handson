@@ -20,10 +20,6 @@ Disclaimer: I'm not affiliated with any of the parties above.
 
 # Fasten your seatbelts
 
-![dashboard.jpg]()
-
-[Image by Vitali Adutskevich](https://unsplash.com/photos/Dq3Z2bQVuHU?utm_source=unsplash&utm_medium=referral&utm_content=creditShareLink)
-
 Let's do some preparations before we dive in.
 
 For Windows and macOS users, it'd include the following steps:
@@ -123,6 +119,7 @@ The Pod is the smallest deployable unit in k8s.
 So, how do we do it?
 
 ```yaml
+#Pod.yaml
 apiVersion: v1
 kind: Pod
 metadata:
@@ -260,6 +257,7 @@ ReplicaSet describes a _desired state_ which is being constantly checked by the 
 Let's see how we write a ReplicaSet specification:
 
 ```yaml
+#ReplicaSet.yaml
 apiVersion: apps/v1
 kind: ReplicaSet
 metadata:
@@ -314,7 +312,7 @@ In the next part we specify the following properties:
 | --- | --- |
 | `spec.replicas` | How many replicas of the same Pods should run |
 | `spec.selector` | Which Pods will be controlled? |
-| `spec.selector.matchLabels` | The Pods will be controlled by specifying the labels. You can specify here more than 1 label and its value |
+| `spec.selector.matchLabels` | The Pods will be controlled by specifying the labels. You can specify here more than 1 label and their values |
 
 Finally, we continue to the ReplicaSet's own specification. We're already familiar with the following k8s required specifications:
 
@@ -366,9 +364,10 @@ The command:
 
 The output would be like the one below:
 ```text
-nginx-replicas-5vc4d   1/1     Running   0          5m42s
-nginx-replicas-bwqz8   1/1     Running   0          5m42s
-nginx-replicas-dx895   1/1     Running   0          5m42s
+NAME                   READY   STATUS              RESTARTS   AGE
+nginx-replicas-f2mn7   1/1     Running             0          26s
+nginx-replicas-dkjkl   1/1     Running             0          29s
+nginx-replicas-5rqqx   1/1     Running             0          32s
 ```
 
 The command's output is the list of Pods, which matched all the labels specified after the `--selector` flag.
@@ -487,6 +486,7 @@ So, how do we replace the Pods with the new ones in the ReplicaSet? Would it be 
 Let's look at the example above:
 
 ```yaml
+#Deployment.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -532,7 +532,7 @@ The API will calculate alone which objects ought to be removed based on the cont
 
 Secondly, let's create a k8s Deployment: `kubectl apply -f Deployment.yaml`
 
-Let's update the Deployment.yaml file to see what's going on with the relevant NGINX version: `1.20.2-alpine`.
+After some 5 minutes, let's update the Deployment.yaml file to see what's going on with the new NGINX version: `1.20.2-alpine`.
 Now, let's run these commands:
 
 ```bash
@@ -565,15 +565,15 @@ So, with the deployments we achieve the following:
  - Whenever there's a change, it replaces the Pods with the new ones gradually
  - Also, Deployments drive the ReplicaSets, so the underlying ReplicaSet keeps the application stable
 
- As it was noted, the ReplicaSets are never used. Instead, due to the reasons above we use Deployments.
+Due to the advantages listed above, the ReplicaSets are never used. Instead, we always use Deployments to control stateless applications.
 
- ---
+---
 
 Under the hood, a Deployment creates another ReplicSet and starts to dynamically update the sizes of two ReplicaSets at the same time.
 The following operations are performed behind the scenes:
 
-- The old ReplicaSet's size is decreased by 1. This causes one of the Pods to get deleted.
 - The size of the newly created ReplicaSet is increased by 1. A new Pod with the new specification is created.
+- The old ReplicaSet's size is decreased by 1. This causes one of the Pods to get deleted.
 
 The above is repeated till the size of the new ReplicaSet is equal to the size of the Deployment, and the size of the old ReplicaSet is equal to 0.
 
@@ -589,19 +589,28 @@ You can note that the newly ReplicSet's size is identical to the # of Pods speci
 
 Eventually the Pods are gradually replaced with the new ones once the old ones are terminated.
 
+By default, up to 10 older ReplicaSets are kept by Kubernetes.
+
 ---
 
 # A word about Services
-
-Currently the application is running, but how can we communicate with it?
  
-k8s assings every Pod an IP address, but how do you navigate till that Pod?
+k8s assings every Pod an internal DNS entry and an internal IP address.
+
+Imagine you have 2 or more applications on top of the same k8s cluster that need to communicate internally with each other (as in microservices).
+
+How do they communicate then?
+
+It would be impractical to enter each Pod's internal DNS name into other applications that are running on top of the cluster.
+
+Hence, Kubernetes Service is used to abstract away that nitty gritty stuff.
 
 Service in k8s serves as a load-balancer that load-balances the traffic between the application's Pods based on their labels.
 
 Namely, it's an abstraction from other k8s components that assign every Pod a DNS record internally and an internal IP.
 
 ```yaml
+#$ervice.yaml
 apiVersion: v1
 kind: Service
 metadata:
@@ -629,23 +638,59 @@ Let's look into the Service's specification:
 
 Let's deploy a test pod (`TestPod.yaml`) and test the service:
 
+```yaml
+#TestPod.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: testpod
+spec:
+  containers:
+  - name: nginx
+    image: nginx:1.20.2-alpine
+```
+
+
 ```bash
 kubectl apply -f TestPod.yaml
-kubectl exec -it nginx -- /bin/sh
+kubectl exec -it testpod -- /bin/sh
 ```
 
-There's a new command 
+There's a new command: `kubectl exec`. Let's dissect it:
 
-Now, we're on the test Pod. Let's add install `curl` on it and run some commands on it:
-```
+---
+- `kubectl` is the main command for the running all other CLI commands against a a k8s cluster
+- `exec` stands for _execute_, i.e. execute the command on top of the Pod's container
+- `-it` - the command's flags. Stands for _interactive_(`i`) _tty_ (`t`). Namely, the container's shell is attached to yours and it's a remote shell
+- `testpod` - is the name of the Pod. It's specified after all the flags of the `kubectl exec` command and subcommand.
+- `--` - serves as a separator for the `kubectl` command and the commands that would run on top of the container's shell
+- `/bin/sh` - the actual command to run on top of the container in the Pod
+
+Note that since there's only one container running inside the Pod, its shell would be referenced by default by the subsequent commands.
+---
+
+Now, we're connected to the `nginx` container inside the Pod. Let's add install `curl` on it and run some commands on it:
+```bash
 apk add curl
 curl http://nginx-service.default.svc.cluster.local/
 ```
-Note the URL structure:
-- The name of the service
-- The namespace (i.e. `default`)
+
+Note the URL structure after the `curl` command:
+- `http://` - the protocol. The next URL elements are separated by periods (.)
+- The name of the service, i.e. `nginx-service`
+- The namespace (i.e. `default`). For the sake of brevity, we won't discuss them in this post.
 - The `svc` prefix stands for Services
-- `cluster.local`
+- `cluster.local` - to singal Kubernetes this a local entry inside the cluster itself.
+
+You can also expose the Services externally and publicly, but this is not within the scope of this tutorial.
+
+If the response text includes `Welcome to nginx`, you've completed the tutorial successfully.
+
+Run the `exit` command on top of the container's shell to disconnect from it.
+
+# Wrap Up
+
+Hope this basic introduction was clear enough, so you can continue your expidition into the realm of Kubernetes.
 
 
 
