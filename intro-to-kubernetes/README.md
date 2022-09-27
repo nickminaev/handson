@@ -231,7 +231,7 @@ pod "nginx" deleted
 
 The output describes that a Pod named "nginx" has been deleted from the k8s cluster.
 
-But when we deleted a Pod, the whole application went down.
+But when we deleted the Pod, the whole application went down.
 
 It must not happen when our application is running on Production.
 Moreover, we should support redudnancy, namely if one of our Pods goes down, we get others.
@@ -607,8 +607,6 @@ Hence, Kubernetes Service is used to abstract away that nitty gritty stuff.
 
 Service in k8s serves as a load-balancer that load-balances the traffic between the application's Pods based on their labels.
 
-Namely, it's an abstraction from other k8s components that assign every Pod a DNS record internally and an internal IP.
-
 ```yaml
 #$ervice.yaml
 apiVersion: v1
@@ -667,6 +665,7 @@ There's a new command: `kubectl exec`. Let's dissect it:
 - `/bin/sh` - the actual command to run on top of the container in the Pod
 
 Note that since there's only one container running inside the Pod, its shell would be referenced by default by the subsequent commands.
+
 ---
 
 Now, we're connected to the `nginx` container inside the Pod. Let's add install `curl` on it and run some commands on it:
@@ -676,6 +675,7 @@ curl http://nginx-service.default.svc.cluster.local/
 ```
 
 Note the URL structure after the `curl` command:
+
 - `http://` - the protocol. The next URL elements are separated by periods (.)
 - The name of the service, i.e. `nginx-service`
 - The namespace (i.e. `default`). For the sake of brevity, we won't discuss them in this post.
@@ -688,9 +688,28 @@ If the response text includes `Welcome to nginx`, you've completed the tutorial 
 
 Run the `exit` command on top of the container's shell to disconnect from it.
 
+Note that typically you would include the Deployment and the Service objects in the same YAML file. 
+
 # Wrap Up
 
 Hope this basic introduction was clear enough, so you can continue your expidition into the realm of Kubernetes.
+
+Let's wrap up the tutorial with a small cheatsheet:
+
+| Term | Description |
+| --- | --- |
+| Kubernetes (k8s) | A series of applications that allow us to manipulate the containers inside which our applications are running |
+| Cluster | A set of computers that hosts the Kubernetes applications and our applications |
+| Control Plane | A server or a set of servers that run the applications which administer the Kubernetes cluster itself |
+| API Server | A part of the _Control Plane_. This application is listening to our commands |
+| Node | A member of the Kubernetes cluster. Nodes comprise the Kubernetes cluster. |
+| kubectl | A CLI to the API server |
+| kubelet | The Kubernetes agent that runs on top of each cluster member |
+| CoreDNS | The k8s internal DNS system |
+| Pod | The smallest unit that allows us to run containers. A Pod can run several containers |
+| ReplicaSet | Allows to replicate the Pods and keep them running in the background |
+| Deployment | Drives ReplicaSets. Allows us to gradually rollout or rollback our appliction without affecting its stability |
+| Service | A load balancer that load balances the traffic between the containers running our application |
 
 
 
