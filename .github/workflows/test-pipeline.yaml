@@ -13,3 +13,10 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+       # this job can now commit to the source code
+       contents: write
+    steps:
+    - uses: actions/checkout@v4
+    - name: Lint the code
+      run: echo "Linting the code"
